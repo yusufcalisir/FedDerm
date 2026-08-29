@@ -97,6 +97,15 @@ def compute_statistics(seed_metrics: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _extract_metric_pct(data: dict[str, Any], key: str, fallback_key: str) -> float:
+    """Safely extract a metric float percentage from dictionary."""
+    val = data.get(key)
+    if val is None:
+        val = data.get(fallback_key, 0.0)
+    val_float = float(val) if val is not None else 0.0
+    return val_float * 100.0 if val_float <= 1.0 else val_float
+
+
 def plot_privacy_utility_curve_with_errorbars(
     summary_data: list[dict[str, Any]],
     non_dp_data: dict[str, Any] | None,
@@ -133,9 +142,7 @@ def plot_privacy_utility_curve_with_errorbars(
     )
 
     if non_dp_data is not None:
-        non_dp_acc = non_dp_data.get("accuracy", non_dp_data.get("accuracy_mean", 0.0)) * (
-            100 if non_dp_data.get("accuracy", 0.0) <= 1.0 else 1.0
-        )
+        non_dp_acc = _extract_metric_pct(non_dp_data, "accuracy", "accuracy_mean")
         ax1.axhline(
             y=non_dp_acc,
             color="#2ca02c",
@@ -177,9 +184,7 @@ def plot_privacy_utility_curve_with_errorbars(
     )
 
     if non_dp_data is not None:
-        non_dp_f1 = non_dp_data.get("macro_f1", non_dp_data.get("macro_f1_mean", 0.0)) * (
-            100 if non_dp_data.get("macro_f1", 0.0) <= 1.0 else 1.0
-        )
+        non_dp_f1 = _extract_metric_pct(non_dp_data, "macro_f1", "macro_f1_mean")
         ax2.axhline(
             y=non_dp_f1,
             color="#2ca02c",
@@ -233,17 +238,21 @@ def save_summary_table_csv(
 
     rows = []
     if non_dp_data is not None:
+        non_dp_acc = _extract_metric_pct(non_dp_data, "accuracy", "accuracy_mean")
+        non_dp_bal_acc = _extract_metric_pct(non_dp_data, "balanced_accuracy", "balanced_accuracy_mean")
+        non_dp_mf1 = _extract_metric_pct(non_dp_data, "macro_f1", "macro_f1_mean")
+        non_dp_wf1 = _extract_metric_pct(non_dp_data, "weighted_f1", "weighted_f1_mean")
         rows.append({
             "noise_multiplier": 0.0,
             "server_epsilon": "inf",
             "client_epsilon": "inf",
-            "accuracy_mean": f"{non_dp_data.get('accuracy', 0.0) * 100:.2f}",
+            "accuracy_mean": f"{non_dp_acc:.2f}",
             "accuracy_std": "0.00",
-            "balanced_accuracy_mean": f"{non_dp_data.get('balanced_accuracy', 0.0) * 100:.2f}",
+            "balanced_accuracy_mean": f"{non_dp_bal_acc:.2f}",
             "balanced_accuracy_std": "0.00",
-            "macro_f1_mean": f"{non_dp_data.get('macro_f1', 0.0) * 100:.2f}",
+            "macro_f1_mean": f"{non_dp_mf1:.2f}",
             "macro_f1_std": "0.00",
-            "weighted_f1_mean": f"{non_dp_data.get('weighted_f1', 0.0) * 100:.2f}",
+            "weighted_f1_mean": f"{non_dp_wf1:.2f}",
             "weighted_f1_std": "0.00",
             "n_seeds": 1,
         })
