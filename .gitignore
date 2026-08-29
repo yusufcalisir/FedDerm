@@ -1,3 +1,6 @@
+# ── Agent / local config (not for version control) ────────────────────────────
+AGENTS.md
+
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
