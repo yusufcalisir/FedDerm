@@ -65,14 +65,14 @@ checkpoints/      ← saved weights (gitignored)
 ## Research Phases
 
 | Phase | Status | Description |
-|-------|--------|-------------|
-| 1 | ✅ Done | Project setup, environment, documentation |
-| 2 | 🔲 Next | Centralized baseline (DermaMNIST, ResNet-18) |
-| 3 | 🔲 | Federated non-IID splits (FedAvg vs robust aggregation) |
-| 4 | 🔲 | Differential privacy (DP-SGD, Opacus) |
-| 5 | 🔲 | DP-LoRA on frozen ViT-B/16 backbone |
-| 6 | 🔲 | Secure Aggregation + central DP |
-| 7 | 🔲 | Final benchmark report |
+|---|---|---|
+| 1 | Done | Project setup, environment, documentation |
+| 2 | Done | Centralized baseline (DermaMNIST, MiniCNN) |
+| 3 | Next | Federated non-IID splits (FedAvg vs robust aggregation) |
+| 4 | Pending | Differential privacy (DP-SGD, Opacus) |
+| 5 | Pending | DP-LoRA on frozen ViT-B/16 backbone |
+| 6 | Pending | Secure Aggregation + central DP |
+| 7 | Pending | Final benchmark report |
 
 ---
 

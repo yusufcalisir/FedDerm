@@ -1,4 +1,4 @@
-# configs/config.yaml — root Hydra config
+# configs/config.yaml -- root Hydra config
 # Specifies the default experiment config to compose.
 # Override on the CLI: python scripts/train_centralized.py experiment=centralized_baseline
 
@@ -8,3 +8,13 @@ defaults:
 
 # Global reproducibility seed (overridable per experiment)
 seed: 42
+
+# Keep Hydra from redirecting the working directory -- all relative paths
+# (data/, results/, checkpoints/) must resolve from the project root.
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job_logging:
+    root:
+      level: WARNING

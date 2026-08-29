@@ -1,5 +1,6 @@
-# configs/experiments/dp_lora_fedavg.yaml
-# Phase 4-5: Federated DP-LoRA on frozen ViT-B/16 backbone.
+# @package _global_
+# configs/experiment/dp_lora_fedavg.yaml
+# Federated DP-LoRA on frozen ViT-B/16 backbone.
 # Placeholder — to be populated in Phase 4/5.
 
 experiment_name: dp_lora_fedavg

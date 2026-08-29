@@ -1,0 +1,23 @@
+# @package _global_
+# configs/experiment/centralized_baseline.yaml
+# Centralized training on DermaMNIST -- establishes the upper-bound reference
+# for all federated and DP comparisons.
+
+experiment_name: centralized_baseline
+dataset: dermamnist
+image_size: 28          # native DermaMNIST resolution; avoids upscaling artefacts
+num_classes: 7
+
+model:
+  name: minicnn         # compact 4-block CNN suited to 28x28 input (see models/minicnn.py)
+  dropout: 0.4
+
+training:
+  epochs: 30            # 30 epochs is ample for convergence on 7k samples; ~2-3 min/epoch CPU
+  batch_size: 64
+  lr: 1.0e-3
+  optimizer: adam
+  weight_decay: 1.0e-4
+  scheduler: cosine     # cosine annealing with T_max=epochs
+
+output_dir: results/centralized_baseline

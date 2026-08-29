@@ -1,5 +1,6 @@
-# configs/experiments/fedavg_dirichlet.yaml
-# Phase 3: FedAvg with non-IID Dirichlet hospital splits.
+# @package _global_
+# configs/experiment/fedavg_dirichlet.yaml
+# FedAvg with non-IID Dirichlet hospital splits.
 # Placeholder — to be populated in Phase 3.
 
 experiment_name: fedavg_dirichlet
