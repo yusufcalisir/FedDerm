@@ -60,8 +60,8 @@ mlruns/
 !checkpoints/.gitkeep
 
 # ── Data (download via scripts, never commit raw data) ─────────────────────────
-data/
-!data/.gitkeep
+/data/
+!/data/.gitkeep
 
 # ── Notebooks (strip outputs before committing; keep .ipynb structure) ─────────
 # Jupyter checkpoints

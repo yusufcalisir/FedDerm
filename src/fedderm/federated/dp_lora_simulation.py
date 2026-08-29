@@ -165,8 +165,10 @@ def run_federated_dp_lora(cfg: DictConfig) -> dict[str, Any]:
     total_train_samples = len(labels)
     privacy_accountant = FederatedPrivacyAccountant(
         target_delta=target_delta,
-        total_clients=num_clients,
+        total_samples=total_train_samples,
+        num_clients=num_clients,
         clients_per_round=clients_per_round,
+        batch_size=batch_size,
     )
 
     best_val_macro_f1 = 0.0
