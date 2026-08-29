@@ -9,6 +9,7 @@ Expected:  all lines print OK with version numbers.
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 
 # Force UTF-8 stdout on Windows (avoids cp1252/cp1254 codec errors)
 if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
@@ -21,7 +22,7 @@ ERR = "[FAIL]"
 SEP = "=" * 44
 
 
-def _check(label: str, fn: "callable[[], str]") -> None:
+def _check(label: str, fn: "Callable[[], str]") -> None:
     try:
         result = fn()
         print(f"  {OK}  {label}: {result}")
