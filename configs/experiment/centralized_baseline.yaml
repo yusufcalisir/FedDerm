@@ -2,6 +2,9 @@
 # configs/experiment/centralized_baseline.yaml
 # Centralized training on DermaMNIST -- establishes the upper-bound reference
 # for all federated and DP comparisons.
+#
+# Architecture: MiniCNN with GroupNorm (num_groups=8).
+# Uses mild class rebalancing (exponent=0.3) and val macro-F1 checkpointing.
 
 experiment_name: centralized_baseline
 dataset: dermamnist
@@ -13,11 +16,12 @@ model:
   dropout: 0.4
 
 training:
-  epochs: 30            # 30 epochs is ample for convergence on 7k samples; ~2-3 min/epoch CPU
+  epochs: 30            # 30 epochs is ample for convergence on 7k samples
   batch_size: 64
   lr: 1.0e-3
   optimizer: adam
   weight_decay: 1.0e-4
   scheduler: cosine     # cosine annealing with T_max=epochs
+  class_weight_exponent: 0.3
 
 output_dir: results/centralized_baseline

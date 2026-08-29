@@ -62,6 +62,7 @@ class DermClient(fl.client.NumPyClient):
         weight_decay: float,
         class_weights: torch.Tensor,
         device: torch.device,
+        mu: float = 0.0,
     ) -> None:
         self.client_id = client_id
         self.train_loader = train_loader
@@ -72,6 +73,7 @@ class DermClient(fl.client.NumPyClient):
         self.weight_decay = weight_decay
         self.criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
         self.device = device
+        self.mu = mu
 
     def get_parameters(self, config: dict[str, Scalar]) -> NDArrays:
         return get_parameters(self.model)
@@ -81,6 +83,12 @@ class DermClient(fl.client.NumPyClient):
     ) -> tuple[NDArrays, int, dict[str, Scalar]]:
         """Receive global parameters, train locally, return updated parameters."""
         set_parameters(self.model, parameters)
+
+        ref_params = (
+            [p.detach().clone() for p in self.model.parameters()]
+            if self.mu > 0.0
+            else None
+        )
 
         optimizer = torch.optim.Adam(
             self.model.parameters(),
@@ -92,14 +100,20 @@ class DermClient(fl.client.NumPyClient):
         train_acc = 0.0
         for _ in range(self.local_epochs):
             train_loss, train_acc = train_one_epoch(
-                self.model, self.train_loader, optimizer, self.criterion, self.device
+                self.model,
+                self.train_loader,
+                optimizer,
+                self.criterion,
+                self.device,
+                proximal_term_ref=ref_params,
+                mu=self.mu,
             )
 
         num_train = len(self.train_loader.dataset)  # type: ignore[arg-type]
         return (
             get_parameters(self.model),
             num_train,
-            {"train_loss": float(train_loss), "train_acc": float(train_acc)},
+            {"train_loss": train_loss, "train_acc": train_acc},
         )
 
     def evaluate(
@@ -107,8 +121,11 @@ class DermClient(fl.client.NumPyClient):
     ) -> tuple[float, int, dict[str, Scalar]]:
         """Receive global parameters, evaluate on local validation set."""
         set_parameters(self.model, parameters)
-        val_loss, val_acc = eval_one_epoch(
+        val_loss, val_acc, val_macro_f1 = eval_one_epoch(
             self.model, self.val_loader, self.criterion, self.device
         )
         num_val = len(self.val_loader.dataset)  # type: ignore[arg-type]
-        return float(val_loss), num_val, {"val_acc": float(val_acc)}
+        return val_loss, num_val, {
+            "val_acc": val_acc,
+            "val_macro_f1": val_macro_f1,
+        }

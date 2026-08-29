@@ -1,0 +1,32 @@
+# @package _global_
+# configs/experiment/fedprox_dirichlet.yaml
+# FedProx simulation with non-IID Dirichlet hospital splits on DermaMNIST.
+#
+# Adds a proximal regularization term to local client training:
+#   loss_prox = loss_ce + (mu / 2) * ||w - w_t||^2
+# to constrain local updates and mitigate client drift under non-IID skew.
+
+experiment_name: fedprox_dirichlet
+dataset: dermamnist
+image_size: 28            # native resolution, same as centralized and FedAvg baselines
+num_classes: 7
+
+model:
+  name: minicnn           # GroupNorm MiniCNN (same architecture across all experiments)
+  dropout: 0.4
+
+federation:
+  num_clients: 10         # simulated hospitals
+  clients_per_round: 5    # 50% participation per round
+  rounds: 20              # matched to FedAvg baseline
+  dirichlet_alpha: 0.3    # matched to FedAvg baseline
+  min_samples_per_client: 5
+  mu: 0.01                # FedProx proximal penalty weight (swept over [0.001, 0.01, 0.1])
+
+local_training:
+  epochs: 3               # local epochs per round
+  batch_size: 64
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+
+output_dir: results/federated_fedprox

@@ -26,6 +26,7 @@ from omegaconf import DictConfig
 import flwr as fl
 from flwr.common import (
     Context,
+    FitRes,
     NDArrays,
     Parameters,
     Scalar,
@@ -33,6 +34,7 @@ from flwr.common import (
     parameters_to_ndarrays,
 )
 from flwr.server import ServerConfig
+from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg
 from flwr.simulation import start_simulation
 
@@ -67,8 +69,8 @@ class SaveableFedAvg(FedAvg):
     def aggregate_fit(
         self,
         server_round: int,
-        results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
-        failures: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes] | BaseException],
+        results: list[tuple[ClientProxy, FitRes]],
+        failures: list[tuple[ClientProxy, FitRes] | BaseException],
     ) -> tuple[Parameters | None, dict[str, Scalar]]:
         agg_params, agg_metrics = super().aggregate_fit(server_round, results, failures)
         if agg_params is not None:
@@ -101,13 +103,16 @@ def run_federated(cfg: DictConfig) -> dict[str, Any]:
     clients_per_round = cfg.federation.clients_per_round
     num_rounds = cfg.federation.rounds
     alpha = cfg.federation.dirichlet_alpha
+    mu = float(cfg.federation.get("mu", cfg.local_training.get("mu", 0.0)))
     local_epochs = cfg.local_training.epochs
     batch_size = cfg.local_training.batch_size
     lr = cfg.local_training.lr
     weight_decay = cfg.local_training.weight_decay
     image_size = cfg.image_size
 
-    print(f"\n[federated] device: {device}")
+    algo_name = f"FedProx (mu={mu})" if mu > 0.0 else "FedAvg"
+    print(f"\n[federated] algorithm: {algo_name}")
+    print(f"[federated] device: {device}")
     print(f"[federated] clients: {num_clients} | sampled/round: {clients_per_round}")
     print(f"[federated] rounds: {num_rounds} | local_epochs: {local_epochs}")
     print(f"[federated] dirichlet alpha: {alpha}")
@@ -160,11 +165,13 @@ def run_federated(cfg: DictConfig) -> dict[str, Any]:
 
     print(f"[federated] model: MiniCNN | params: {sum(p.numel() for p in global_model.parameters()):,}\n")
 
+    best_val_macro_f1 = 0.0
     best_val_acc = 0.0
     best_ckpt_path = out_dir / "best_model.pt"
     history_records: dict[str, list[float]] = {
         "val_loss": [],
         "val_acc": [],
+        "val_macro_f1": [],
     }
 
     # -- Centralized evaluation function for server rounds -----------------------
@@ -175,22 +182,27 @@ def run_federated(cfg: DictConfig) -> dict[str, Any]:
         parameters: NDArrays,
         config: dict[str, Scalar],
     ) -> tuple[float, dict[str, Scalar]] | None:
-        nonlocal best_val_acc
+        nonlocal best_val_acc, best_val_macro_f1
         set_parameters(eval_model, parameters)
-        val_loss, val_acc = eval_one_epoch(eval_model, val_loader, val_criterion, device)
+        val_loss, val_acc, val_macro_f1 = eval_one_epoch(
+            eval_model, val_loader, val_criterion, device
+        )
         history_records["val_loss"].append(val_loss)
         history_records["val_acc"].append(val_acc)
+        history_records["val_macro_f1"].append(val_macro_f1)
 
-        if val_acc > best_val_acc:
+        if val_macro_f1 > best_val_macro_f1:
+            best_val_macro_f1 = val_macro_f1
             best_val_acc = val_acc
             torch.save(eval_model.state_dict(), best_ckpt_path)
 
         print(
             f"Round {server_round:2d}/{num_rounds} | "
             f"val_loss: {val_loss:.4f} | val_acc: {val_acc*100:.2f}% | "
-            f"best_val_acc: {best_val_acc*100:.2f}%"
+            f"val_mF1: {val_macro_f1*100:.2f}% | "
+            f"best_val_mF1: {best_val_macro_f1*100:.2f}%"
         )
-        return float(val_loss), {"val_acc": float(val_acc)}
+        return val_loss, {"val_acc": val_acc, "val_macro_f1": val_macro_f1}
 
     strategy = SaveableFedAvg(
         fraction_fit=clients_per_round / num_clients,
@@ -205,7 +217,7 @@ def run_federated(cfg: DictConfig) -> dict[str, Any]:
     # -- Flower client factory ---------------------------------------------------
     def client_fn(context: Context) -> fl.client.Client:
         """Flower client factory: instantiate the correct client for each node."""
-        client_id = int(context.node_id) % num_clients
+        client_id = context.node_id % num_clients
         model = build_model(num_classes=cfg.num_classes, dropout=0.4).to(device)
         client = DermClient(
             client_id=client_id,
@@ -217,6 +229,7 @@ def run_federated(cfg: DictConfig) -> dict[str, Any]:
             weight_decay=weight_decay,
             class_weights=class_weights,
             device=device,
+            mu=mu,
         )
         return client.to_client()
 
@@ -252,16 +265,19 @@ def run_federated(cfg: DictConfig) -> dict[str, Any]:
     test_metrics = evaluate(global_model, test_loader, device)
     test_metrics["training_time_seconds"] = total_time
     test_metrics["best_val_acc"] = best_val_acc
+    test_metrics["best_val_macro_f1"] = best_val_macro_f1
     test_metrics["num_rounds"] = num_rounds
     test_metrics["num_clients"] = num_clients
     test_metrics["dirichlet_alpha"] = alpha
     test_metrics["local_epochs"] = local_epochs
+    test_metrics["mu"] = mu
+    test_metrics["algorithm"] = "FedProx" if mu > 0.0 else "FedAvg"
 
     save_metrics(test_metrics, out_dir / "test_metrics.json")
 
     # -- Print results -----------------------------------------------------------
     print("\n" + "=" * 60)
-    print("FEDERATED TEST RESULTS (FedAvg)")
+    print(f"FEDERATED TEST RESULTS ({algo_name})")
     print("=" * 60)
     print(f"  Accuracy:          {test_metrics['accuracy']*100:.2f}%")
     print(f"  Balanced accuracy: {test_metrics['balanced_accuracy']*100:.2f}%")

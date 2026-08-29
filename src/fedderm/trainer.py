@@ -15,10 +15,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
-from tqdm import tqdm
+from sklearn.metrics import f1_score
 
 from fedderm.data import get_dataloaders, get_class_names, get_class_weights
 from fedderm.models import build_model
@@ -37,8 +38,14 @@ def train_one_epoch(
     optimizer: torch.optim.Optimizer,
     criterion: nn.Module,
     device: torch.device,
+    proximal_term_ref: list[torch.Tensor] | None = None,
+    mu: float = 0.0,
 ) -> tuple[float, float]:
-    """Run one training epoch. Returns (mean_loss, accuracy)."""
+    """Run one training epoch. Returns (mean_loss, accuracy).
+
+    If proximal_term_ref is provided and mu > 0, adds the FedProx proximal penalty:
+        loss_prox = (mu / 2) * sum(||w - w_ref||^2)
+    """
     model.train()
     total_loss = 0.0
     correct = 0
@@ -51,6 +58,13 @@ def train_one_epoch(
         optimizer.zero_grad()
         logits = model(images)
         loss = criterion(logits, targets)
+
+        if proximal_term_ref is not None and mu > 0.0:
+            prox_loss = 0.0
+            for param, ref_param in zip(model.parameters(), proximal_term_ref):
+                prox_loss = prox_loss + (param - ref_param).pow(2).sum()
+            loss = loss + (mu / 2.0) * prox_loss
+
         loss.backward()
         optimizer.step()
 
@@ -66,12 +80,19 @@ def eval_one_epoch(
     loader: torch.utils.data.DataLoader,
     criterion: nn.Module,
     device: torch.device,
-) -> tuple[float, float]:
-    """Single-pass validation: returns (mean_loss, accuracy)."""
+) -> tuple[float, float, float]:
+    """Single-pass validation: returns (mean_loss, accuracy, macro_f1).
+
+    Macro F1 is the primary checkpoint-selection metric because overall
+    accuracy is misleading on DermaMNIST's imbalanced validation set
+    (nv = ~67% of samples; a model predicting only nv scores ~67% accuracy).
+    """
     model.eval()
     total_loss = 0.0
     correct = 0
     total = 0
+    all_preds: list[int] = []
+    all_targets: list[int] = []
 
     with torch.no_grad():
         for images, targets in loader:
@@ -79,11 +100,15 @@ def eval_one_epoch(
             targets = targets.view(-1).long().to(device)
             logits = model(images)
             loss = criterion(logits, targets)
+            preds = logits.argmax(dim=1)
             total_loss += loss.item() * images.size(0)
-            correct += (logits.argmax(dim=1) == targets).sum().item()
+            correct += (preds == targets).sum().item()
             total += images.size(0)
+            all_preds.extend(preds.cpu().numpy().tolist())
+            all_targets.extend(targets.cpu().numpy().tolist())
 
-    return total_loss / total, correct / total
+    macro_f1 = float(f1_score(all_targets, all_preds, average="macro", zero_division=0))
+    return total_loss / total, correct / total, macro_f1
 
 
 def run_centralized(cfg: DictConfig) -> dict[str, Any]:
@@ -109,10 +134,14 @@ def run_centralized(cfg: DictConfig) -> dict[str, Any]:
         image_size=cfg.image_size,
         batch_size=cfg.training.batch_size,
         num_workers=0,  # Windows-safe
+        balanced_sampler=cfg.training.get("balanced_sampler", False),
     )
 
-    # Inverse-frequency class weights to handle nevi dominance
-    class_weights = get_class_weights("data", image_size=cfg.image_size).to(device)
+    # Mild inverse-frequency class weights to handle nevi dominance
+    class_weight_exp = cfg.training.get("class_weight_exponent", 0.3)
+    class_weights = get_class_weights(
+        "data", image_size=cfg.image_size, exponent=class_weight_exp
+    ).to(device)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     # -- Model -----------------------------------------------------------------
@@ -150,10 +179,11 @@ def run_centralized(cfg: DictConfig) -> dict[str, Any]:
 
     # -- Training loop ---------------------------------------------------------
     history: dict[str, list[float]] = {
-        "train_loss": [], "val_loss": [], "train_acc": [], "val_acc": []
+        "train_loss": [], "val_loss": [],
+        "train_acc": [], "val_acc": [], "val_macro_f1": []
     }
 
-    best_val_acc = 0.0
+    best_val_macro_f1 = 0.0
     best_ckpt_path = out_dir / "best_model.pt"
     t0 = time.time()
 
@@ -163,7 +193,9 @@ def run_centralized(cfg: DictConfig) -> dict[str, Any]:
             model, train_loader, optimizer, criterion, device
         )
 
-        val_loss, val_acc = eval_one_epoch(model, val_loader, criterion, device)
+        val_loss, val_acc, val_macro_f1 = eval_one_epoch(
+            model, val_loader, criterion, device
+        )
 
         if scheduler is not None:
             scheduler.step()
@@ -172,10 +204,13 @@ def run_centralized(cfg: DictConfig) -> dict[str, Any]:
         history["val_loss"].append(val_loss)
         history["train_acc"].append(train_acc)
         history["val_acc"].append(val_acc)
+        history["val_macro_f1"].append(val_macro_f1)
 
-        # Checkpoint best model by val accuracy
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
+        # Checkpoint by val macro F1 -- the correct metric for imbalanced
+        # multi-class problems. Overall val_acc is dominated by the nv majority
+        # class (~67%) and selects majority-class-biased checkpoints.
+        if val_macro_f1 > best_val_macro_f1:
+            best_val_macro_f1 = val_macro_f1
             torch.save(model.state_dict(), best_ckpt_path)
 
         ep_time = time.time() - t_ep
@@ -183,6 +218,7 @@ def run_centralized(cfg: DictConfig) -> dict[str, Any]:
             f"Epoch {epoch:3d}/{cfg.training.epochs} | "
             f"loss {train_loss:.4f} | acc {train_acc*100:.1f}% | "
             f"val_loss {val_loss:.4f} | val_acc {val_acc*100:.1f}% | "
+            f"val_mF1 {val_macro_f1*100:.1f}% | "
             f"{ep_time:.0f}s"
         )
 
@@ -197,7 +233,7 @@ def run_centralized(cfg: DictConfig) -> dict[str, Any]:
     model.load_state_dict(torch.load(best_ckpt_path, map_location=device))
     test_metrics = evaluate(model, test_loader, device)
     test_metrics["training_time_seconds"] = total_time
-    test_metrics["best_val_acc"] = best_val_acc
+    test_metrics["best_val_macro_f1"] = best_val_macro_f1
 
     save_metrics(test_metrics, out_dir / "test_metrics.json")
 

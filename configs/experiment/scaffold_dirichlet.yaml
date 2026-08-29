@@ -1,0 +1,35 @@
+# @package _global_
+# configs/experiment/scaffold_dirichlet.yaml
+# SCAFFOLD simulation with non-IID Dirichlet hospital splits on DermaMNIST.
+#
+# Employs client and server control variates (c_i and c) to estimate and correct
+# client drift under statistical heterogeneity:
+#   grad_corrected = grad - c_i + c
+#
+# Matched to the exact experimental setup of FedAvg and FedProx:
+#   10 clients, 5 sampled per round, 20 rounds, 3 local epochs, alpha=0.3.
+
+experiment_name: scaffold_dirichlet
+dataset: dermamnist
+image_size: 28            # native resolution, same as centralized, FedAvg, and FedProx
+num_classes: 7
+
+model:
+  name: minicnn           # GroupNorm MiniCNN (same architecture across all experiments)
+  dropout: 0.4
+
+federation:
+  algorithm: scaffold
+  num_clients: 10         # simulated hospitals
+  clients_per_round: 5    # 50% participation per round
+  rounds: 20              # matched to FedAvg and FedProx
+  dirichlet_alpha: 0.3    # matched to FedAvg and FedProx
+  min_samples_per_client: 5
+
+local_training:
+  epochs: 3               # local epochs per round
+  batch_size: 64
+  lr: 1.0e-3              # local learning rate (eta_l)
+  weight_decay: 1.0e-4
+
+output_dir: results/federated_scaffold
