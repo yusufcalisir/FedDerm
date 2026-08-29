@@ -1,0 +1,43 @@
+# configs/experiments/dp_lora_fedavg.yaml
+# Phase 4-5: Federated DP-LoRA on frozen ViT-B/16 backbone.
+# Placeholder — to be populated in Phase 4/5.
+
+experiment_name: dp_lora_fedavg
+dataset: dermamnist
+image_size: 224       # ViT requires 224×224
+num_classes: 7
+
+federation:
+  num_clients: 10
+  clients_per_round: 5
+  rounds: 100
+  dirichlet_alpha: 0.1
+  min_samples_per_client: 10
+
+strategy:
+  name: fedavg           # upgraded to hetero-robust strategy after Phase 3
+
+model:
+  backbone: vit_b16
+  pretrained: true
+  freeze_backbone: true
+  lora:
+    rank: 8
+    alpha: 16
+    target_modules: [query, value]
+
+local_training:
+  epochs: 3
+  batch_size: 16
+  lr: 5.0e-4
+  optimizer: adam
+  weight_decay: 0.0
+
+privacy:
+  mechanism: dp_sgd      # opacus
+  epsilon: 3.0
+  delta: 1.0e-5
+  max_grad_norm: 1.0
+  noise_multiplier: null  # computed automatically from epsilon/delta if null
+
+output_dir: results/dp_lora_fedavg

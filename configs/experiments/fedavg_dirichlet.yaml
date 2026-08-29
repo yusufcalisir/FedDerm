@@ -1,0 +1,33 @@
+# configs/experiments/fedavg_dirichlet.yaml
+# Phase 3: FedAvg with non-IID Dirichlet hospital splits.
+# Placeholder — to be populated in Phase 3.
+
+experiment_name: fedavg_dirichlet
+dataset: dermamnist
+image_size: 64
+num_classes: 7
+
+federation:
+  num_clients: 10
+  clients_per_round: 5
+  rounds: 100
+  dirichlet_alpha: 0.1    # lower = more non-IID heterogeneity
+  min_samples_per_client: 10
+
+strategy:
+  name: fedavg
+  # FedProx / SCAFFOLD / FedDyn alternatives configured here
+
+model:
+  backbone: resnet18
+  pretrained: false
+
+local_training:
+  epochs: 3
+  batch_size: 32
+  lr: 1.0e-3
+  optimizer: sgd
+  momentum: 0.9
+  weight_decay: 1.0e-4
+
+output_dir: results/fedavg_dirichlet

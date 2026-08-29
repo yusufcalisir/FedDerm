@@ -1,0 +1,103 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+wheels/
+.installed.cfg
+MANIFEST
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# ── Distribution / packaging ───────────────────────────────────────────────────
+*.tar.gz
+*.whl
+pip-wheel-metadata/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Testing ────────────────────────────────────────────────────────────────────
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# ── ML / Research outputs (large, reproducible from code) ──────────────────────
+results/
+outputs/
+checkpoints/
+runs/
+wandb/
+mlruns/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+# Exception: keep small reference artifacts if explicitly committed
+!results/.gitkeep
+!checkpoints/.gitkeep
+
+# ── Data (download via scripts, never commit raw data) ─────────────────────────
+data/
+!data/.gitkeep
+
+# ── Notebooks (strip outputs before committing; keep .ipynb structure) ─────────
+# Jupyter checkpoints
+.ipynb_checkpoints/
+# Uncomment to fully ignore notebook outputs (optional — team preference):
+# *.ipynb
+
+# ── IDEs / editors ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Hydra / config outputs ─────────────────────────────────────────────────────
+multirun/
+.hydra/
+
+# ── Logs ───────────────────────────────────────────────────────────────────────
+*.log
+logs/
+!logs/.gitkeep
+
+# ── Profiling ──────────────────────────────────────────────────────────────────
+*.prof
+*.lprof
+
+# ── Environment secrets ────────────────────────────────────────────────────────
+.env
+.env.*
+secrets.yaml
+secrets.json
+
+# ── OS artefacts ───────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
