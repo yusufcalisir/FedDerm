@@ -1,0 +1,38 @@
+# @package _global_
+# configs/experiment/dp_lora_fedprox_dirichlet.yaml
+# Federated DP-SGD + LoRA with FedProx on frozen ViT-B/16 backbone for DermaMNIST.
+
+experiment_name: dp_lora_fedprox_dirichlet
+dataset: dermamnist
+image_size: 224
+num_classes: 7
+
+model:
+  name: vit_lora
+  backbone: vit_base_patch16_224
+  lora_rank: 8
+  lora_alpha: 16
+  lora_dropout: 0.0
+
+federation:
+  algorithm: dp_lora_fedprox
+  mu: 0.01                # FedProx proximal penalty weight
+  num_clients: 10
+  clients_per_round: 5
+  rounds: 20
+  dirichlet_alpha: 0.3
+  partition_seed: 42
+  min_samples_per_client: 5
+
+local_training:
+  epochs: 3
+  batch_size: 64
+  lr: 1.0e-3
+  weight_decay: 1.0e-2
+
+privacy:
+  noise_multiplier: 1.0   # Gaussian noise std multiplier (sigma)
+  max_grad_norm: 1.0      # L2 gradient clipping threshold (C)
+  target_delta: 1.0e-5    # Target delta for DP accounting
+
+output_dir: results/dp_lora_fedprox
