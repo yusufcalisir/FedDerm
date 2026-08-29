@@ -1,0 +1,22 @@
+# Normalize line endings to LF in the repository; checkout as native on each OS.
+* text=auto
+
+# Force LF for Python and config files regardless of OS
+*.py    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.toml  text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.json  text eol=lf
+*.cfg   text eol=lf
+*.ini   text eol=lf
+
+# Treat wheel/binary files as binary
+*.whl   binary
+*.pt    binary
+*.pth   binary
+*.ckpt  binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
