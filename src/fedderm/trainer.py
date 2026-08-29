@@ -46,7 +46,7 @@ def train_one_epoch(
 
     for images, targets in loader:
         images = images.to(device)
-        targets = targets.squeeze().long().to(device)
+        targets = targets.view(-1).long().to(device)
 
         optimizer.zero_grad()
         logits = model(images)
@@ -76,7 +76,7 @@ def eval_one_epoch(
     with torch.no_grad():
         for images, targets in loader:
             images = images.to(device)
-            targets = targets.squeeze().long().to(device)
+            targets = targets.view(-1).long().to(device)
             logits = model(images)
             loss = criterion(logits, targets)
             total_loss += loss.item() * images.size(0)

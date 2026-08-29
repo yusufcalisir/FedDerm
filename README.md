@@ -68,10 +68,10 @@ checkpoints/      ← saved weights (gitignored)
 |---|---|---|
 | 1 | Done | Project setup, environment, documentation |
 | 2 | Done | Centralized baseline (DermaMNIST, MiniCNN) |
-| 3 | Next | Federated non-IID splits (FedAvg vs robust aggregation) |
-| 4 | Pending | Differential privacy (DP-SGD, Opacus) |
-| 5 | Pending | DP-LoRA on frozen ViT-B/16 backbone |
-| 6 | Pending | Secure Aggregation + central DP |
+| 3 | Done | Federated non-IID splits (Dirichlet alpha=0.3, FedAvg baseline) |
+| 4 | Next | Robust aggregation (FedProx / SCAFFOLD vs client drift) |
+| 5 | Pending | Differential privacy (DP-SGD, Opacus) |
+| 6 | Pending | DP-LoRA on frozen ViT-B/16 backbone |
 | 7 | Pending | Final benchmark report |
 
 ---

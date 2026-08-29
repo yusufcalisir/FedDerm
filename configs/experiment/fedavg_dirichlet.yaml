@@ -1,34 +1,33 @@
 # @package _global_
 # configs/experiment/fedavg_dirichlet.yaml
-# FedAvg with non-IID Dirichlet hospital splits.
-# Placeholder — to be populated in Phase 3.
+# FedAvg simulation with non-IID Dirichlet hospital splits on DermaMNIST.
+#
+# CPU runtime estimate:
+#   10 clients, 5/round, 20 rounds, 3 local epochs, batch 64
+#   ~30-45 min on a modern CPU (Flower Ray simulation overhead included).
+#   Increase rounds to 50 for tighter convergence at ~90-120 min cost.
 
 experiment_name: fedavg_dirichlet
 dataset: dermamnist
-image_size: 64
+image_size: 28            # native resolution, same as centralized baseline
 num_classes: 7
 
-federation:
-  num_clients: 10
-  clients_per_round: 5
-  rounds: 100
-  dirichlet_alpha: 0.1    # lower = more non-IID heterogeneity
-  min_samples_per_client: 10
-
-strategy:
-  name: fedavg
-  # FedProx / SCAFFOLD / FedDyn alternatives configured here
-
 model:
-  backbone: resnet18
-  pretrained: false
+  name: minicnn           # must match centralized baseline for apples-to-apples comparison
+  dropout: 0.4
+
+federation:
+  num_clients: 10         # simulated hospitals
+  clients_per_round: 5    # 50% participation per round
+  rounds: 20              # sufficient to observe FedAvg convergence behavior
+  dirichlet_alpha: 0.3    # realistic hospital skew; lower than 0.1 to avoid
+                          # complete minority-class starvation on 28px 7k dataset
+  min_samples_per_client: 5
 
 local_training:
-  epochs: 3
-  batch_size: 32
+  epochs: 3               # local epochs per round (standard FedAvg default)
+  batch_size: 64
   lr: 1.0e-3
-  optimizer: sgd
-  momentum: 0.9
   weight_decay: 1.0e-4
 
-output_dir: results/fedavg_dirichlet
+output_dir: results/federated_fedavg
